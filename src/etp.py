@@ -33,8 +33,7 @@ NAME_RE = re.compile(rb"^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}\Z")
 
 def encode(mtype, payload=b"", status=0):
     """Return the bytes of one complete ETP message: header + payload."""
-    # TODO: pack the header with HEADER.pack(...) and append the payload.
-    raise NotImplementedError
+    return HEADER.pack(VERSION, mtype, status, 0, len(payload)) + payload
 
 
 def read_message(conn, transport):
@@ -44,8 +43,12 @@ def read_message(conn, transport):
     checks in Specification Section 8.1: what must be checked BEFORE you read
     the payload, and why?
     """
-    # TODO
-    raise NotImplementedError
+    raw_hdr = transport.recv_exact(conn, HEADER_SIZE)
+    version, mtype, status, _rsv, length = HEADER.unpack(raw_hdr)
+    if version != VERSION or length > MAX_LEN:
+        return version, mtype, status, length, b""
+    payload = transport.recv_exact(conn, length) if length > 0 else b""
+    return version, mtype, status, length, payload
 
 
 def valid_name(name_bytes):
