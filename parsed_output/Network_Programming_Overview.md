@@ -1,0 +1,836 @@
+## Network Programming: A First Orientation
+
+CSC 4200 / 5200 - Computer Networks Weeks 1-2 Handout
+
+Tennessee Tech University Department of Computer Science
+
+## What this document is, and what it is not
+
+This is an orientation, not a specification and not a substitute for lecture. Its purpose in the first two weeks is narrow: to give you a working mental model of how two programs talk to each other over a network, and enough running code to watch that model behave on your own machine.
+
+It deliberately stops short of completeness. Several topics here get one paragraph now and a full module later in the term.
+
+## By the end of Part I you should be able to:
+
+- explain what a socket is, and what an IP address and a port each identify;
+- name the sequence of calls a TCP server makes and the sequence a TCP client makes, and say why they differ;
+- write, run, and modify a TCP client and server that exchange data on your own machine;
+- find your own traffic in a packet capture and identify the connection being set up and torn down;
+- connect a measured round-trip time to the delay components you are computing in the metrics material; and
+- work through a client and server that refuse to talk to each other.
+
+What you need: the environment you built in Lab 0 - Python 3.10 or newer, a terminal, a text editor, and a packet capture tool. Every example uses only the Python standard library. Nothing to install, no accounts, no cloud, no lab machine.
+
+## Rules of engagement
+
+Everything in this document runs entirely on your own computer, over the loopback address 127.0.0.1. Traffic sent there never leaves the machine.
+
+That is not an accident of convenience. It is the boundary of the exercise:
+
+- Run servers and clients only on hardware you own or have been assigned, and bind them to 127.0.0.1 unless told otherwise.
+- Capture packets only on your own loopback interface, or on a capture file supplied by the instructor. Do not capture on the campus network, on a residence-hall network, or on any network shared with other people.
+- Do not scan, probe, connect to, or send traffic to third-party hosts as part of these exercises.
+- Put synthetic data in your test messages. No real passwords, no personal information, not yours and not anyone else's.
+
+If an exercise ever seems to require stepping outside these limits, it does not. Ask first.
+
+## How to Read This Document
+
+This handout is longer than what the first two weeks require, on purpose. It is organised in two parts so you can tell which is which.
+
+| Part               | Contents                                                                                                         | When                                                                                                   |
+|--------------------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| Part I Start Here  | The mental model, the echo client and server, measurement, packet capture, and what to do when it does not work. | Now. This is the Weeks 1-2 material and it ends with a short check-in.                                 |
+| Part II Read Ahead | Message framing, concurrency, UDP, HTTP, TLS, and error handling.                                                | Skim now so you know what is coming. We return to each of these when we reach the layer it belongs to. |
+| Appendices         | The same operations in C; a file inventory.                                                                      | Reference. Read Appendix A if and when you write C.                                                    |
+
+Every section in Part II carries a short note under its heading saying which part of the course it belongs to. Nothing in Part II is required reading this week, and nothing in Part II will be assumed knowledge next week.
+
+If you read only Part I and do the exercises in it, you have done what this handout asks. If you read all of it, you will recognise a good deal of the rest of the semester when it arrives, which is a pleasant way to meet it.
+
+## Contents
+
+| How to Read This Document   |   2 |
+|-----------------------------|-----|
+| I Start Here (Weeks 1-2)    |   5 |
+| 1 Before You Start          |   5 |
+
+| 1.1                                                   | You will need two terminals . . . . . . . . . . . . . . . .                            | . . . . . . . . . . . . . . . . 5     |
+|-------------------------------------------------------|----------------------------------------------------------------------------------------|---------------------------------------|
+| 1.2                                                   | How to stop a server . . . . . . . . . . . . . . . . . . . .                           | . . . . . . . . . . . . . . . . 5     |
+| 2 The                                                 | Mental Model                                                                           | 5                                     |
+| 2.1                                                   | Two programs, one conversation . . . . . . . . . . . . . .                             | . . . . . . . . . . . . . . . . 5     |
+| 2.2                                                   | A socket is an endpoint . . . . . . . . . . . . . . . . . .                            | . . . . . . . . . . . . . . . . 5     |
+| 2.3                                                   | Client, server, and protocol . . . . . . . . . . . . . . . .                           | . . . . . . . . . . . . . . . . 6     |
+| 2.4                                                   | Where the socket API sits in the stack . . . . . . . . . .                             | . . . . . . . . . . . . . . . . 6     |
+| 2.5                                                   | TCP and UDP at a glance . . . . . . . . . . . . . . . . .                              | . . . . . . . . . . . . . . . . 7     |
+| 3 Your                                                | First TCP Application: An Echo Service                                                 | 7                                     |
+| 3.1 . . .                                             | The lifecycle . . . . . . . . . . . . . . . . . . . . . .                              | . . . . . . . . . . . . . . . . 7     |
+| 3.2                                                   | TCP echo server . . . . . . . . . . . . . . . . . . . . . .                            | . . . . . . . . . . . . . . . . 8     |
+| 3.3                                                   | TCP echo client . . . . . . . . . . . . . . . . . . . . . . .                          | . . . . . . . . . . . . . . . . 9     |
+| 3.4 . .                                               | Running them . . . . . . . . . . . . . . . . . . . . . .                               | . . . . . . . . . . . . . . . . 9     |
+| 3.5 .                                                 | Bytes and text . . . . . . . . . . . . . . . . . . . . . .                             | . . . . . . . . . . . . . . . . 10    |
+| 3.6 . . . . .                                         | Blocking . . . . . . . . . . . . . . . . . . . . . .                                   | . . . . . . . . . . . . . . . . 10    |
+| 4                                                     | Measuring What You Just Built                                                          | 11                                    |
+| 4.1                                                   | Measurement one: how fast is loopback? . . . . . . . . .                               | . . . . . . . . . . . . . . . . 11    |
+| 4.2                                                   | Measurement two: compare it to a real link . . . . . . .                               | . . . . . . . . . . . . . . . . 12    |
+| 4.3                                                   | Measurement three: does one send equal one receive? . .                                | . . . . . . . . . . . . . . . . 12    |
+| 5                                                     | Seeing It on the Wire                                                                  | 13                                    |
+| 6 When                                                | It Does Not Work                                                                       | 14                                    |
+| 6.1                                                   | A checklist, in order . . . . . . . . . . . . . . . . . . . .                          | . . . . . . . . . . . . . . . . 14    |
+| 7                                                     | Week 2 Check-In                                                                        | 15                                    |
+| II Read Ahead                                         | II Read Ahead                                                                          | 16                                    |
+| 8 TCP Is a Byte Stream: Designing Message Boundaries  | 8 TCP Is a Byte Stream: Designing Message Boundaries                                   | 16                                    |
+| 8.1 Framing . . . . .                                 | . . . . . . . . . . . . . . . . . . . . . .                                            | . . . . . . . . . . . . . . . . 16    |
+| 8.2                                                   | A length-prefixed protocol . . . . . . . . . . . . . . . . .                           | . . . . . . . . . . . . . . . . 17    |
+| 8.3 . . .                                             | Using it . . . . . . . . . . . . . . . . . . . . . . . .                               | . . . . . . . . . . . . . . . . 18    |
+| 8.4                                                   | Binary headers with more than one field . . . . . . . . .                              | . . . . . . . . . . . . . . . . 18    |
+| 8.5                                                   | Four bugs you are statistically likely to write                                        | 19                                    |
+|                                                       | . . . . . .                                                                            | . . . . . . . . . . . . . . . .       |
+| 9 9.1 A                                               | Serving More Than One Client thread per connection . . . . . . . . . . . . . . . . . . | 19 . . . . . . . . . . . . . . . . 20 |
+| 9.2                                                   | Event-driven concurrency with asyncio . . . . . . . . .                                | . . . . . . . . . . . . . . . . 21    |
+| 9.3                                                   | Choosing . . . . . . . . . . . . . . . . . . . .                                       | . . . . . . . . . . . . . . . . 22    |
+| 10 UDP:                                               | . . . . . .                                                                            | 22                                    |
+| 10.1                                                  | Sending and Receiving Datagrams . . . .                                                | 23                                    |
+| server . . . . . . . . 10.2 UDP client with a timeout | . . . . . . . . . . . . .                                                              | . . . . . . . . . . . . . . . .       |
+| UDP                                                   | . . . . . . . . . . . . . . . .                                                        | . . . . . . . . . . . . . . . . 23    |
+| .                                                     | .                                                                                      |                                       |
+| 11 From Sockets to Application Protocols              | 11 From Sockets to Application Protocols                                               | 24                                    |
+
+| 11.1   | A minimal HTTP/1.1 server . . . . . . . . . . . . . .          | . . . . . . . . . . . . . . . . . . 24   |
+|--------|----------------------------------------------------------------|------------------------------------------|
+| 11.2   | TLS . . . . . . . . . . . . . . . . . . . . . . . . . . .      | . . . . . . . . . . . . . . . . . . 26   |
+| 12     | Errors, Timeouts, and Clean Shutdown                           | 27                                       |
+|        | 12.1 The exceptions worth knowing . . . . . . . . . . . . .    | . . . . . . . . . . . . . . . . . . 27   |
+|        | 12.2 Ending a connection properly . . . . . . . . . . . . .    | . . . . . . . . . . . . . . . . . . 27   |
+| 13     | Where This Goes Next                                           | 28                                       |
+|        | 13.1 Quick reference . . . . . . . . . . . . . . . . . . . . . | . . . . . . . . . . . . . . . . . . 28   |
+| III    | Appendices                                                     | 29                                       |
+| A      | The Same Operations in C                                       | 29                                       |
+| B      | Files Produced by This Document                                | 31                                       |
+
+## Part I
+
+## Start Here (Weeks 1-2)
+
+## 1 Before You Start
+
+## 1.1 You will need two terminals
+
+Almost every example here involves two programs running at once: a server that waits, and a client that connects. You cannot do that in one terminal window. Open two, and put both in the same folder.
+
+Create a working folder and keep every file from this document in it:
+
+```
+mkdir -p ~/csc4200/intro cd ~/csc4200/intro
+```
+
+## 1.2 How to stop a server
+
+A server runs forever on purpose. Press Ctrl+C in its terminal to stop it. If you close the terminal window instead, the process may survive and keep the port occupied, which produces the most common error message you will see this semester:
+
+```
+OSError: [Errno 98] Address already in use
+```
+
+Section 6 tells you what to do about it.
+
+## 2 The Mental Model
+
+## 2.1 Two programs, one conversation
+
+Strip away the vocabulary and network programming is this: two running programs, usually on two different computers, agree to exchange bytes, and agree on what those bytes mean.
+
+The operating system and the network move the bytes. You supply the agreement. Most of the difficulty in this course lives in that second part.
+
+## 2.2 A socket is an endpoint
+
+A socket is an object the operating system gives your program so that it can send and receive data. It is an endpoint of communication, not the connection itself, and not the network.
+
+The comparison to a telephone is close enough to be useful: the socket is the handset on your desk. It is yours, it is local, and it exists whether or not anyone is on the line. The call is something else.
+
+To reach a specific program on a specific machine you need two values:
+
+- An IP address identifies a network interface on a host. It answers which machine.
+- A port number identifies an application endpoint on that host. It answers which program on that machine.
+
+Together they form an endpoint, written address:port - for example 127.0.0.1:65432. The address 127.0.0.1 is the IPv4 loopback address: packets sent to it are delivered back to the same machine and never touch a network interface. It is the right place to learn.
+
+Ports 0-1023 are the well-known ports and on Unix-like systems require administrative privilege to bind. Use something above 1023 for your own programs. The examples here use 65432 for TCP and 65433 for UDP.
+
+## 2.3 Client, server, and protocol
+
+These three words describe roles, not kinds of computer:
+
+- A server binds a known address and port and waits.
+- A client knows that address and port, and initiates.
+- An application protocol is the agreement about what the bytes mean: where one message ends and the next begins, which fields exist and in what order, what constitutes a valid request, what the response looks like, and what happens when something is wrong.
+
+The same program can be a client in one conversation and a server in another. Your web browser is a client to a web server and a client to a DNS server, and if you run a development server on your laptop it is a server to itself.
+
+## 2.4 Where the socket API sits in the stack
+
+You have met the layered model in lecture. Here is where your code attaches to it:
+
+| Layer                  | Who is responsible                                                                                                 |
+|------------------------|--------------------------------------------------------------------------------------------------------------------|
+| Application            | You. Message format, field order, request and response rules, error behaviour.                                     |
+| - socket API -         | The boundary. send(), recv(), connect(), accept(). This is where your program hands bytes to the operating system. |
+| Transport (TCP / UDP)  | The OS. Ports, and either a reliable ordered stream or best- effort datagrams.                                     |
+| Network (IP)           | The OS and the routers. Addressing and getting the packet to the right host.                                       |
+| Link (Ethernet, Wi-Fi) | The NIC and driver. Frames across one hop.                                                                         |
+| Physical               | Signals on copper, fibre, or air.                                                                                  |
+
+## Key idea
+
+The socket API is the seam between the part of the system you write and the part of the system you inherit. Everything below it is provided. Everything above it is your design problem - and a large share of real-world network bugs are design problems at that top layer, not failures underneath it.
+
+The layers below the seam are the subject of most of this course. You will spend a module on each of them. This handout is about standing at the seam and looking in both directions.
+
+## 2.5 TCP and UDP at a glance
+
+Two transport protocols sit directly beneath the socket API, and choosing between them is the first design decision of any network program. You will study both in detail later; for now, the contrast is what matters.
+
+|                                                                                                                                     | TCP                                                                                                                                          | UDP                                                                                                                                                  |
+|-------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Service model Connection setup Retransmission Ordering Message boundaries Flow / congestion control Typical uses Python socket type | Reliable, ordered byte stream Yes (three-way handshake) Yes Guaranteed Not preserved Yes Web, email, file transfer, remote login SOCK_STREAM | Best-effort datagrams None at the transport layer No Not guaranteed Preserved, one per datagram No DNS, real-time media, games, telemetry SOCK_DGRAM |
+
+## Key idea
+
+TCP delivers a reliable, in-order stream of bytes. It does not promise that one call to but that datagram may be lost, duplicated, or delivered out of order - and UDP will not
+
+sendall() will correspond to one call to recv(). UDP preserves each datagram as a unit, tell you. Neither protocol gives you message boundaries and reliability for free. Section 8, in Part II,
+
+is about what to do with the half you did not get.
+
+## 3 Your First TCP Application: An Echo Service
+
+An echo service sends every message it receives back to the sender. It is the smallest program that exercises the whole socket lifecycle without any distracting application logic.
+
+## 3.1 The lifecycle
+
+The two sides follow different sequences of calls. Learn this table; it is the skeleton of every TCP program you will write.
+
+| Server                                                       | Client                                            | What it does                                                                                                                                                      |
+|--------------------------------------------------------------|---------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| socket() bind() listen() accept() recv() / sendall() close() | socket() - - connect() sendall() / recv() close() | Create the endpoint object Claim a local address and port Mark the socket as accepting connections The handshake happens here Exchange bytes Release the endpoint |
+
+One detail catches nearly everyone: accept() returns a new socket. The listening socket keeps listening. The returned socket - called conn throughout this document - is the one connected to that one client. A server with three clients has four sockets open.
+
+## 3.2 TCP echo server
+
+[Save this as echo\_server.py.](https://echo_server.py/)
+
+```
+1 import socket 2 3 HOST = "127.0.0.1" # Listen on the loopback interface only 4 PORT = 65432 # Any free port above 1023 5 BUFFER_SIZE = 4096 6 7 8 def main(): 9 # AF_INET selects IPv4; SOCK_STREAM selects TCP. 10 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket: 11 # Lets us restart the server immediately after stopping it. 12 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 13 14 server_socket.bind((HOST, PORT)) 15 server_socket.listen() 16 print(f"Listening on {HOST}:{PORT}") 17 18 # Blocks until a client connects. Returns a NEW socket for that client. 19 conn, client_address = server_socket.accept() 20 with conn: 21 print(f"Connected by {client_address}") 22 while True: 23 data = conn.recv(BUFFER_SIZE) 24 if data == b"": 25 # An empty result means the peer closed the connection. 26 break 27 print(f"Received {len(data)} bytes: {data!r}") 28 conn.sendall(data) 29 30 print("Client disconnected") 31 32 33 if __name__ == "__main__": 34 main()
+```
+
+The calls that matter:
+
+Converts the socket into a listening socket and creates the backlog queue for pending connections.
+
+Blocks until a client connects, then returns a pair: the new connected socket, and the client's address.
+
+```
+bind((host, port)) Claims a local endpoint for this socket. listen() accept()
+```
+
+Listing 1: A single-client TCP echo server
+
+recv(n)
+
+sendall(data)
+
+Returns up to n bytes. It may return fewer - even when more bytes are on their way. This is not a bug, and Section 4 will let you watch it happen.
+
+Keeps sending until every byte has been handed to the operating system, or an error occurs. Prefer it over send(), which may transfer only part of the buffer and returns a count you are then responsible for checking.
+
+## 3.3 TCP echo client
+
+Save this as echo\_client.py.
+
+```
+1 import socket 2 3 HOST = "127.0.0.1" 4 PORT = 65432 5 6 7 def main(): 8 message = "Hello, CSC 4200!" 9 10 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket: 11 client_socket.settimeout(5.0) # Never wait forever 12 client_socket.connect((HOST, PORT)) 13 14 outgoing = message.encode("utf-8") 15 client_socket.sendall(outgoing) 16 print(f"Sent: {message}") 17 18 # We know exactly how many bytes to expect back, so keep reading 19 # until we have them all. One recv() is not guaranteed to suffice. 20 incoming = bytearray() 21 while len(incoming) < len(outgoing): 22 chunk = client_socket.recv(len(outgoing) - len(incoming)) 23 if chunk == b"": 24 raise ConnectionError("Server closed before replying in full") 25 incoming.extend(chunk) 26 27 print(f"Received: {bytes(incoming).decode('utf-8')}") 28 29 30 if __name__ == "__main__": 31 main()
+```
+
+Listing 2: A TCP echo client that reads the whole reply
+
+Notice that the client loops even though it is expecting only sixteen bytes. Most textbook examples call recv() once and happen to work, because on loopback with a tiny message it almost always does. "Almost always works" is the most expensive kind of bug in networking, because it survives testing and fails in the field.
+
+## 3.4 Running them
+
+Terminal one:
+
+```
+python3 echo_server.py
+```
+
+Terminal two:
+
+```
+python3 echo_client.py
+```
+
+Start the server first. A client that connects to a port where nothing is listening immediately raises ConnectionRefusedError.
+
+The two programs must agree on four things: the address, the port, the transport protocol, and the application protocol. Change any one of them on one side only, and the conversation fails - sometimes loudly, sometimes by hanging, and sometimes by silently producing nonsense.
+
+## 3.5 Bytes and text
+
+Sockets carry bytes. Python strings are text. The conversion is explicit and it is yours to perform:
+
+```
+outgoing_bytes = some_text.encode("utf-8") some_text = incoming_bytes.decode("utf-8")
+```
+
+Choosing an encoding is part of designing a protocol, and both sides must make the same choice. UTF-8 is the sane default. Note also that in UTF-8 the number of characters and the number of bytes are not the same - "café" is four characters and five bytes. When a protocol talks about a length, it almost always means bytes.
+
+## 3.6 Blocking
+
+Nearly every call above is blocking: accept() waits for a client, recv() waits for data, connect() waits for the handshake. The program does nothing else while it waits.
+
+For one client this is simple and fine. It becomes the central design problem the moment there are two, which is Section 9 in Part II.
+
+## SO\_REUSEADDR is narrower than it sounds
+
+On Unix-like systems it permits binding an address that a recently closed connection has left in TIME\_WAIT. That is why it fixes the "address already in use" error you get when restarting a server. It does not let you bind a port another process is actively listening on - if that is your problem, find and stop the other process.
+
+On Windows the flag has different and more permissive semantics; treat it as a development convenience there, not a pattern for anything that matters.
+
+## Try it
+
+Start the server, then start two clients. What happens to the second one, and why? Look at the server code and identify the exact line it is stuck on. Your answer is the motivation for Section 9.
+
+## 4 Measuring What You Just Built
+
+You now have a working network application. Before adding anything to it, take two measurements. Both connect this code to material you are meeting elsewhere in these first weeks, and both produce a result that should surprise you a little.
+
+## 4.1 Measurement one: how fast is loopback?
+
+Add timing around a request and reply. Save this as measure\_rtt.py and run it against your echo server:
+
+```
+1 import socket 2 import statistics 3 import time 4 5 HOST, PORT = "127.0.0.1", 65432 6 SAMPLES = 200 7 8 9 def main(): 10 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s: 11 s.connect((HOST, PORT)) 12 13 s.sendall(b"warmup") # First exchange is always slower. 14 s.recv(4096) 15 16 timings = [] 17 for _ in range(SAMPLES): 18 start = time.perf_counter() 19 s.sendall(b"PING") 20 s.recv(4096) 21 timings.append((time.perf_counter() - start) * 1000.0) 22 23 print(f"samples : {len(timings)}") 24 print(f"median : {statistics.median(timings):.4f} ms") 25 print(f"minimum : {min(timings):.4f} ms") 26 print(f"maximum : {max(timings):.4f} ms") 27 28 29 if __name__ == "__main__": 30 main()
+```
+
+Listing 3: Measuring application-level round-trip time
+
+You will get a median somewhere in the range of tens of microseconds - that is, a small fraction of one millisecond. Write your number down; you need it in a moment.
+
+Two things are worth noticing before you move on. First, the maximum is often several times the median, from a single unlucky sample. Nothing went wrong; the operating system scheduled something else. Variation in delay has a name, jitter, and you are looking at it. Second, this is application-level round-trip time. It includes your Python interpreter, two system calls in each direction, and the kernel's loopback path. It is not the same quantity as a network round-trip time, and the difference is the point of the next subsection.
+
+## 4.2 Measurement two: compare it to a real link
+
+In the metrics material you are computing propagation delay as distance divided by signal speed. Apply it to the two scenarios you have seen, using 3.0 × 108 m/s for a vacuum path:
+
+| Path                   | Distance       | One-way           | Round trip        |
+|------------------------|----------------|-------------------|-------------------|
+| Loopback, your machine | ≈ 0            | -                 | your measurement  |
+| Earth to Mars          | 225 million km | 750 s (12.5 min)  | 1500 s (25 min)   |
+| Earth to Jupiter       | 778 million km | 2593 s (43.2 min) | 5187 s (86.4 min) |
+
+Now divide. If your loopback round trip is 50 microseconds, the Earth-Mars round trip is roughly 3 × 107 times longer, and the Jupiter round trip roughly 108 times longer. That is eight orders of magnitude between the fastest and slowest link you will consider this semester, and the code does not change. The same sendall() and recv() calls sit at both ends.
+
+## The decomposition is the lesson
+
+Total latency is the sum of propagation, transmission, processing, and queuing delay. What changes between these two cases is not the formula but which term dominates.
+
+On loopback, propagation delay is effectively zero. Every microsecond you measured is processing - your interpreter, the system calls, the kernel path. Optimising that code would move the number.
+
+On the Jupiter link, processing delay is irrelevant noise against 43 minutes of propagation. No amount of faster code moves that number, because it is set by the speed of light and the distance. This is why an interactive protocol that works beautifully across a data centre is unusable across the solar system, and why deep-space networking is a different design problem rather than the same one with bigger numbers.
+
+## Try it
+
+Using your measured loopback round trip and the table above, answer three questions in your notes:
+
+1. What is the ratio between the Earth-Mars round trip and yours? Express it as a power of ten.
+2. Which delay component dominates in each case, and roughly what fraction of the total is it?
+3. Your echo client sends a message and waits for the reply before doing anything else. Describe what that program's behaviour would look like running over the Jupiter link. What would you have to change about the protocol - not the code - to make it usable?
+
+## 4.3 Measurement three: does one send equal one receive?
+
+One more experiment, and this one sets up a good deal of Part II.
+
+Modify your echo server so that it counts and prints the number of times recv() returns, and totals the bytes. Then have the client send one large message in a single call:
+
+```
+client_socket.sendall(b"Z" * 300000)
+```
+
+That is one call to sendall() on the sending side. Count the recv() calls on the receiving side. On a typical loopback run you will see five or six, not one. Vary the size and watch the number change.
+
+You have just demonstrated that TCP does not preserve your message boundaries. The bytes all arrive, in order, exactly once - that part TCP guarantees. How they are grouped on arrival is not something TCP promises anything about, and it is not something you can control.
+
+That is a genuine problem, and it has a standard solution, and both are the subject of Section 8. For now it is enough that you have seen it happen on your own machine, because the students who have not seen it happen tend not to believe it.
+
+## 5 Seeing It on the Wire
+
+Everything so far has been observed from inside your own program. Now look at the same conversation from outside it. The two views teach different things, and reading a capture is a skill you will use for the rest of the course.
+
+Wireshark provides a graphical view; tcpdump and tshark do the same job from the command line. Use whichever your Lab 0 environment provides.
+
+## Capture your own echo exchange
+
+1. Start a capture on the loopback interface: lo on Linux, lo0 on macOS. On Windows, loopback capture requires Npcap installed with loopback support, and the interface is named "Adapter for loopback traffic capture. "
+2. Restrict what you capture with a capture filter, which uses BPF syntax:
+
+```
+tcp port 65432
+```
+
+Once captured, narrow what you see with a display filter, which uses Wireshark's own syntax and is a different language:
+
+```
+tcp.port == 65432
+```
+
+Confusing the two is the most common first-time Wireshark mistake. Equivalent from the command line:
+
+```
+sudo tcpdump -i lo -n -X 'tcp port 65432'
+```
+
+3. Run echo\_server.py, then echo\_client.py.
+4. Find the three-way handshake: SYN, then SYN-ACK, then ACK. This is the connect() and accept() pair from Section 3, seen from the outside.
+5. Find the packet carrying Hello, CSC 4200! and read the payload bytes. Confirm that they are the UTF-8 encoding of what you sent, in plaintext, with nothing hiding them.
+6. Find the connection teardown: FIN and ACK in each direction.
+7. Follow the TCP stream (right-click, Follow → TCP Stream) and compare the reassembled conversation against what your program printed.
+
+Then two questions worth thinking about.
+
+How many packets did sixteen bytes cost? Count everything: handshake, data, acknowledgements, teardown. The ratio of overhead to payload for a very small message is not subtle, and it is one reason protocols batch.
+
+Why are the segments so large? Repeat the capture with the 300,000-byte send from Section 4 and look at the segment sizes. They will be far larger than the 1500-byte Ethernet MTU you have met in lecture. Loopback is not Ethernet - it has no cable, no collisions, and an MTU of 65536 bytes on Linux, and the kernel additionally hands large buffers to the stack in one piece. Everything you are watching is real TCP behaviour over an unreal link.
+
+## Loopback is a liar, and a useful one
+
+A loopback capture will never show you a retransmission, a reordering, a collision, a congestion event, or a path-MTU problem, because none of those things can happen there. It shows you your protocol, cleanly, which is exactly what you want while learning it and exactly what you must not mistake for evidence that your program works on a network.
+
+Keep both facts. The clean view is why we start here. The limitation is why we do not stay.
+
+## 6 When It Does Not Work
+
+## 6.1 A checklist, in order
+
+1. Start order. Is the server actually running, and did it start before the client?
+2. Same endpoint. Do both programs have the same address and the same port? Read them out loud; transposed digits are invisible.
+3. Same transport. TCP on both sides, or UDP on both sides. A SOCK\_STREAM client will never reach a SOCK\_DGRAM server.
+4. Reachability. A server bound to 127.0.0.1 is unreachable from any other machine, by design. To accept outside connections bind 0.0.0.0 - and understand what you have just exposed before you do.
+5. Address already in use. An old process still holds the port. Find it with lsof -i :65432 or ss -ltnp | grep 65432 (netstat -ano | findstr 65432 on Windows) and stop it.
+6. Firewall. Host or network policy may be dropping the traffic silently. Silent drops usually look like a hang; refusals look like ConnectionRefusedError.
+7. Protocol agreement. Do both sides agree on encoding, on message boundaries, on field order, and on who speaks first?
+8. Find the blocking point. Print a line immediately before and after every accept(), connect(), recv(), and sendall(). The last line printed tells you where it stopped.
+9. Look at the actual bytes. Print repr(data) or use an f-string with !r, never print(data.decode()). You need to see delimiters, trailing newlines, and partial reads, and decoding hides all three.
+
+10. Add a timeout while diagnosing, so a hang becomes an exception with a traceback and a line number.
+11. Go to the wire. If the two programs still disagree about what happened, capture the traffic (Section 5) and find out which one is wrong.
+
+## The single most useful diagnostic question
+
+What exact operation is each side waiting for right now?
+
+A large fraction of "the network is broken" turns out to be a protocol deadlock: both endpoints are blocked in recv(), each waiting for the other to speak first. Nothing is broken. The two programs simply disagree about whose turn it is - which is a flaw in the protocol design, not in the network.
+
+## 7 Week 2 Check-In
+
+## Submit to Canvas: week2\_checkin.txt or .pdf, one page maximum
+
+This is a check that your environment works and that you have run the code. It is not an exam, and there is no penalty for an answer that turns out to be wrong - but there is real value in writing down what you actually observed rather than what you expected to observe.
+
+1. Evidence of the handshake. A screenshot, or pasted tcpdump output, showing the SYN / SYN-ACK / ACK exchange from your own echo client and server. Two or three lines is plenty.
+2. Your latency comparison. Report your measured median loopback round-trip time, the Earth-Mars round-trip propagation delay, and the ratio between them as a power of ten. Then one sentence: which delay component dominates in each case?
+3. Your send-and-receive count. How many times did recv() return while receiving the 300,000-byte message sent in one sendall()? One sentence on what that tells you about the relationship between the two calls.
+4. One question. Something in this handout you do not yet understand, or something you tried that behaved differently than described. This one is genuinely useful to me - it tells me what to spend class time on.
+
+Work individually. Your numbers will differ from your neighbour's, and identical numbers across submissions are the kind of thing that gets noticed.
+
+## Part II Read Ahead
+
+## Nothing past this point is required in Weeks 1-2
+
+The rest of this handout answers questions the first two weeks raise but do not resolve. Skim it now so that you recognise the shape of what is coming; return to each section when the course reaches the layer it belongs to.
+
+If you would rather stop at Part I, stop at Part I. You have done what was asked.
+
+## 8 TCP Is a Byte Stream: Designing Message Boundaries
+
+Read ahead: this is the transport-layer material, and the answer to what you measured in Section 4.
+
+You have already seen the problem: one sendall(), six recv() calls. TCP guarantees that the bytes you send arrive, in order, exactly once. It says nothing at all about how they will be grouped when they get there. A receiver may observe:
+
+- one application message split across several reads;
+- several application messages delivered in a single read; or
+- any other grouping, so long as the byte order is preserved.
+
+## Three different things are often confused here
+
+Partial reads are not IP fragmentation. Keep these separate:
+
+- Partial reads happen because recv() returns whatever is in the kernel receive buffer at that instant. This is an API property.
+- TCP segmentation is TCP dividing your byte stream into segments sized by the maximum segment size. This is a transport property.
+- IP fragmentation is a network-layer mechanism for a packet too large for a link's MTU. It is rare on modern paths and is not the reason your recv() came back short.
+
+All three matter, and only the first one explains what you measured.
+
+## 8.1 Framing
+
+Because TCP will not mark message boundaries, your application protocol must. This is called framing, and there are four common approaches:
+
+- Delimiter-based. End every message with a distinguished byte sequence - a newline, or HTTP's blank line. Simple and human-readable. The protocol must then say what happens if the delimiter appears inside the data, which means escaping.
+- Length-prefixed. Send a fixed-size length field, then exactly that many payload bytes. No escaping needed, works for arbitrary binary data, trivially parsed.
+- Fixed-size. Every message is exactly the size the protocol states. Common in embedded and telemetry protocols.
+
+- Connection close as terminator. End of stream means end of message. Only workable when the connection carries one message.
+
+Length-prefixing is the one to learn first. It is what HTTP/2, gRPC, TLS records, and most binary protocols use, and it is the pattern you are most likely to meet again when you build something of your own later in the term.
+
+## 8.2 A length-prefixed protocol
+
+Our protocol, stated completely:
+
+```
+4-byte payload length, network byte order + payload bytes
+```
+
+Network byte order is big-endian. Python's struct module writes it with the format string "!I" - ! for network order, I for unsigned 32-bit integer. Save the following as framed\_socket.py.
+
+```
+1 """Length-prefixed message framing over a TCP socket.""" 2 import struct 3 4 HEADER_FORMAT = "!I" # network order, uint32 5 HEADER_SIZE = struct.calcsize(HEADER_FORMAT) # 4 6 MAX_MESSAGE_SIZE = 1_048_576 # 1 MiB ceiling we enforce 7 8 9 def recv_exact(sock, count): 10 """Return exactly 'count' bytes. 11 12 Returns None if the peer closed cleanly before any byte of this read 13 arrived. Raises ConnectionError if it closed part-way through. 14 """ 15 buffer = bytearray() 16 while len(buffer) < count: 17 chunk = sock.recv(count - len(buffer)) 18 if chunk == b"": 19 if not buffer: 20 return None 21 raise ConnectionError("peer closed in the middle of a message") 22 buffer.extend(chunk) 23 return bytes(buffer) 24 25 26 def send_message(sock, text): 27 payload = text.encode("utf-8") 28 if len(payload) > MAX_MESSAGE_SIZE: 29 raise ValueError(f"message of {len(payload)} bytes exceeds the limit") 30 sock.sendall(struct.pack(HEADER_FORMAT, len(payload)) + payload) 31 32 33 def recv_message(sock): 34 header = recv_exact(sock, HEADER_SIZE) 35 if header is None: 36 return None # clean end of stream 37 38 (length,) = struct.unpack(HEADER_FORMAT, header) 39 if length > MAX_MESSAGE_SIZE:
+```
+
+```
+40 raise ValueError(f"peer announced {length} bytes; refusing") 41 42 payload = recv_exact(sock, length) 43 if payload is None: # a legitimate empty message 44 payload = b"" 45 return payload.decode("utf-8")
+```
+
+Listing 4: Length-prefixed framing helpers
+
+Three design decisions in that file are worth naming out loud, because each one is a bug you would otherwise write.
+
+First, recv\_exact distinguishes two kinds of close. A peer that disconnects between messages has behaved correctly, and the caller should stop. A peer that disconnects halfway through a declared payload has left the stream in a state you cannot interpret, and that deserves an exception. Collapsing both into "return None" loses information the caller needs.
+
+Second, the size limit is not decoration. Without it, anything that sends the four bytes FF FF FF FF makes your program try to assemble a four-gigabyte message. That is a denial-of-service vector delivered in four bytes. Every length field you ever parse should be validated against a limit before you act on it. This is one of the most transferable habits in the course.
+
+Third, an empty message is legal and must survive the round trip. A length of zero is a valid message with no payload. Code written as if not payload: raise ConnectionError(...) treats it as an error, because an empty bytes object is falsy in Python. Compare explicitly against None and against b"" rather than relying on truthiness - with sockets those two conditions genuinely mean different things.
+
+## 8.3 Using it
+
+```
+1 from framed_socket import send_message, recv_message 2 3 # Sender side 4 send_message(connected_socket, "first message") 5 send_message(connected_socket, "second message") 6 7 # Receiver side 8 while True: 9 message = recv_message(connected_socket) 10 if message is None: 11 break # peer closed cleanly 12 print(f"Complete message: {message}")
+```
+
+Listing 5: Exchanging complete messages over a connected socket
+
+Nothing here depends on reads lining up with writes. The receiver collects a whole header, learns the length, then collects exactly that many bytes. Feed it one byte at a time and it still works.
+
+## 8.4 Binary headers with more than one field
+
+Real protocol headers carry several fields. struct handles this, but the first character of the format string does more than you might expect. Here is a hypothetical header with seven fields:
+
+```
+import struct # Source port, dest port, sequence number, ACK, SYN, FIN, payload length FORMAT = "!HHIBBBH" print(struct.calcsize(FORMAT)) # 13 header = struct.pack(FORMAT, 5000, 65432, 1, 0, 1, 0, 4) print(header.hex(" ")) # 13 88 ff 98 00 00 00 01 00 01 00 00 04 print(struct.unpack(FORMAT, header))
+```
+
+## The leading character of a struct format is not optional
+
+"!HHIBBBH" is 13 bytes. The same fields written as "@HHIBBBH" - or with the leading character left off entirely, since @ is the default - are 14 bytes on a typical machine, because native mode inserts padding to satisfy the platform's alignment rules.
+
+A protocol specification that says thirteen bytes means thirteen bytes on the wire. Always begin the format with ! for network protocols, and always check with struct.calcsize() before you trust it. C programmers have the same trap in a different costume; see Appendix A.
+
+Note also that byte order only applies to fields wider than one byte. The one-byte flags above have no endianness to get wrong. The two- and four-byte fields do.
+
+## Try it
+
+Take the echo server and client from Section 3 and convert them to use send\_message and recv\_message. Then send three messages back to back without waiting for a reply, and send one message of 200,000 characters. Both should now work exactly as written. Try the same two tests against the original unframed pair and record what happens.
+
+## 8.5 Four bugs you are statistically likely to write
+
+1. Assuming one send equals one recv. You have already disproved this experimentally. It still works on loopback with short messages, and still fails on a real path, under load, or with large payloads. Fix: frame your messages and read exactly.
+2. Shared state without a lock. Two threads mutating the same list produces corruption or an exception, intermittently, and usually only while being demonstrated. Fix: a Lock around every access - and release it before doing I/O.
+3. Trusting a length field. A peer announces four gigabytes and your program tries to allocate it. Fix: validate against a declared maximum before acting.
+4. Treating an empty result as an error. In Python, b"" is falsy. if not data is true both when the peer disconnected and when it sent a legitimately empty message. Fix: test explicitly for what you mean.
+
+## 9 Serving More Than One Client
+
+Read ahead: this answers the two-client experiment from Section 3.
+
+Our first server accepts one client, serves it, and exits. A real server puts accept() in a loop - but that alone is not enough, because while the server is inside the loop talking to client A it is not at accept(), and client B waits.
+
+The problem is blocking, and there are two mainstream answers.
+
+## 9.1 A thread per connection
+
+Threads keep the blocking style and let it happen in several places at once. The main thread does nothing but accept; each accepted connection gets a worker.
+
+```
+1 import socket 2 import threading 3 4 HOST = "127.0.0.1" 5 PORT = 65432 6 7 8 def handle_client(conn, client_address): 9 print(f"Connected: {client_address}") 10 try: 11 with conn: 12 while True: 13 data = conn.recv(4096) 14 if data == b"": 15 break 16 conn.sendall(data) 17 except (ConnectionError, OSError) as error: 18 print(f"Error from {client_address}: {error}") 19 finally: 20 print(f"Disconnected: {client_address}") 21 22 23 def main(): 24 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket: 25 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 26 server_socket.bind((HOST, PORT)) 27 server_socket.listen() 28 print(f"Listening on {HOST}:{PORT}") 29 30 while True: 31 conn, client_address = server_socket.accept() 32 worker = threading.Thread( 33 target=handle_client, 34 args=(conn, client_address), 35 daemon=True, 36 ) 37 worker.start() 38 39 40 if __name__ == "__main__": 41 main()
+```
+
+Listing 6: A concurrent threaded echo server
+
+daemon=True means the interpreter will not wait for these threads at exit, so Ctrl+C shuts the server down promptly. That is the right trade for a teaching example; a server holding real state wants an orderly shutdown instead.
+
+Threads share memory, which is what makes them convenient and what makes them dangerous. Any data structure two threads touch - a list of connected clients, a counter, a dictionary of sessions - needs a threading.Lock around every access, not just the writes.
+
+## Do not hold a lock across network I/O
+
+The tempting way to write a broadcast is to take the lock and loop over the client list calling sendall() inside it. Do not.
+
+sendall() blocks when the receiver's window is full, which means one slow or stalled client can hold the lock indefinitely and freeze every other thread that needs it. That is a real outage, produced by four lines of reasonable-looking code.
+
+The pattern is: take the lock, copy the list, release the lock, then send.
+
+## A worthwhile exercise
+
+Extend the threaded server into a broadcast chat server: every message from one client is relayed to all the others. It is a satisfying thing to build, and it forces two of this handout's lessons together.
+
+Two requirements, both non-negotiable, and both of which you now know why:
+
+1. Use the framing helpers. An unframed chat server appears to work with short messages typed slowly by one person, and corrupts messages the moment two clients type at once.
+2. Copy the client list under the lock, then send outside it.
+
+The client needs a thread too - one to read the keyboard, one to receive broadcasts - since it cannot block on input() and recv() at the same time.
+
+## 9.2 Event-driven concurrency with asyncio
+
+The other answer keeps one thread and multiplexes. Python's asyncio library runs an event loop: when a coroutine reaches await on an I/O operation, it yields, and the loop runs whichever other coroutine is ready.
+
+This example uses newline-delimited framing, which is what reader.readline() implements for you. Save it as async\_server.py.
+
+```
+1 import asyncio 2 3 HOST = "127.0.0.1" 4 PORT = 65432 5 MAX_LINE_SIZE = 64 * 1024 6 7 8 async def handle_client(reader, writer): 9 client_address = writer.get_extra_info("peername") 10 print(f"Connected: {client_address}") 11 try: 12 while True: 13 line = await reader.readline()
+```
+
+```
+14 if line == b"": 15 break 16 if len(line) > MAX_LINE_SIZE: 17 raise ValueError("line too long") 18 writer.write(line) 19 await writer.drain() 20 except (ConnectionError, ValueError) as error: 21 print(f"Error from {client_address}: {error}") 22 finally: 23 writer.close() 24 await writer.wait_closed() 25 print(f"Disconnected: {client_address}") 26 27 28 async def main(): 29 server = await asyncio.start_server(handle_client, HOST, PORT) 30 addresses = ", ".join(str(s.getsockname()) for s in server.sockets) 31 print(f"Listening on {addresses}") 32 async with server: 33 await server.serve_forever() 34 35 36 if __name__ == "__main__": 37 asyncio.run(main())
+```
+
+Listing 7: An asynchronous line-oriented echo server
+
+asyncio is cooperative. A coroutine keeps the event loop to itself until it reaches an await. A blocking call or a long computation inside a coroutine stalls every connection the loop is managing - including the ones belonging to other clients. This failure mode is quiet and confusing, and it is the price of the model.
+
+## 9.3 Choosing
+
+- Single-threaded blocking - to learn the lifecycle, and for tools that serve one client at a time.
+- Threads - when the connection count is moderate, when straightforward top-to-bottom control flow is worth a lot, or when you must call libraries that only offer blocking APIs.
+- Event loop - when you need many simultaneous, mostly idle connections, and your libraries support asynchronous I/O.
+
+You will read that event loops eliminate context-switching overhead. Be careful with that claim: they move the scheduling decision from the kernel into your process, which is cheaper per switch and buys a great deal at high connection counts, but the loop still yields to the kernel on every I/O operation. The real saving at scale is memory - a thread carries a stack, a coroutine does not. There is a third option, non-blocking sockets driven directly by select or epoll, which is what the event loop is built on. We may look at it later; you should at least know it is there.
+
+## 10 UDP: Sending and Receiving Datagrams
+
+Read ahead: transport layer, alongside TCP.
+
+UDP has no connection to establish. A sender calls sendto(data, address); a receiver calls recvfrom(size) and gets back both the datagram and the address it came from.
+
+## 10.1 UDP server
+
+Save as udp\_server.py.
+
+```
+1 import socket 2 3 HOST = "127.0.0.1" 4 PORT = 65433 5 6 7 def main(): 8 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as server_socket: 9 server_socket.bind((HOST, PORT)) 10 print(f"UDP server listening on {HOST}:{PORT}") 11 12 while True: 13 data, client_address = server_socket.recvfrom(4096) 14 print(f"Received {data!r} from {client_address}") 15 server_socket.sendto(b"PONG", client_address) 16 17 18 if __name__ == "__main__": 19 main()
+```
+
+Listing 8: A UDP request-response server
+
+There is no listen() and no accept(), because there is nothing to accept. One socket serves every client. Note also that recvfrom(4096) returns one datagram, not four kilobytes of stream - and if the datagram is larger than the buffer you asked for, the excess is discarded, silently. Size that buffer to your protocol.
+
+## 10.2 UDP client with a timeout
+
+[Save as udp\_client.py.](https://udp_client.py/)
+
+```
+1 import socket 2 3 SERVER_ADDRESS = ("127.0.0.1", 65433) 4 5 6 def main(): 7 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket: 8 client_socket.settimeout(2.0) 9 client_socket.sendto(b"PING", SERVER_ADDRESS) 10 11 try: 12 data, sender_address = client_socket.recvfrom(4096) 13 except TimeoutError: 14 # On Python 3.9 and earlier, catch socket.timeout instead. 15 print("No response arrived before the timeout") 16 return
+```
+
+```
+17 18 print(f"Received {data!r} from {sender_address}") 19 20 21 if __name__ == "__main__": 22 main()
+```
+
+Listing 9: A UDP client that does not wait forever
+
+The timeout is the whole point. sendto() always "succeeds" - it hands the datagram to the operating system and returns. Nothing about that tells you anyone received it. If no server is listening, this client waits two seconds and gives up, which is the correct behaviour and is behaviour you had to write yourself.
+
+## If you need reliability over UDP, you have to build it
+
+Sequence numbers, acknowledgements, retransmission timers, duplicate detection, reordering buffers, flow control. That list is most of TCP, which is why the usual advice is to use TCP. The legitimate reasons to build it anyway - and they exist, which is why QUIC exists - are that you need control over when to give up on a lost packet, or you cannot afford head-of-line blocking, or you need multicast. "TCP felt heavy" is not on the list.
+
+## Another way loopback misleads
+
+Your UDP test on 127.0.0.1 will show zero loss, zero reordering, and microsecond latency. That tells you your code is syntactically fine. It tells you nothing about whether your protocol tolerates the conditions it was designed for.
+
+Related surprise: on Linux, sending UDP to a closed local port often triggers an ICMP portunreachable that surfaces as ConnectionRefusedError on a connectionless socket. It is real, it is confusing the first time, and it does not happen the same way across a real network.
+
+## 11 From Sockets to Application Protocols
+
+Read ahead: application layer, late in the first half of the course.
+
+Everything so far has been transport plumbing. A protocol is the layer above: syntax, meaning, legal message sequences, size limits, and error behaviour. HTTP is the most familiar example, and it is close enough to the surface that you can implement a recognisable subset in forty lines.
+
+## 11.1 A minimal HTTP/1.1 server
+
+Deliberately limited: it reads one request, sends one response, and closes. It does not parse bodies, support persistent connections, implement any method other than the trivial case, or defend itself properly.
+
+```
+1 import socket 2 3 HOST = "127.0.0.1" 4 PORT = 8080 5 MAX_HEADER_SIZE = 16 * 1024 6
+```
+
+```
+7 8 def receive_headers(conn): 9 """Read until the blank line that ends the HTTP header block.""" 10 request = bytearray() 11 while b"\r\n\r\n" not in request: 12 chunk = conn.recv(4096) 13 if chunk == b"": 14 return None 15 request.extend(chunk) 16 if len(request) > MAX_HEADER_SIZE: 17 raise ValueError("request headers too large") 18 return bytes(request) 19 20 21 def main(): 22 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket: 23 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 24 server_socket.bind((HOST, PORT)) 25 server_socket.listen() 26 print(f"Open http://{HOST}:{PORT}/ in a browser") 27 28 while True: 29 conn, client_address = server_socket.accept() 30 with conn: 31 try: 32 request = receive_headers(conn) 33 if request is None: 34 continue 35 36 request_line = request.split(b"\r\n", 1)[0] 37 print(client_address, request_line.decode("ascii", "replace")) 38 39 body = b"Hello from CSC 4200!\n" 40 headers = ( 41 "HTTP/1.1 200 OK\r\n" 42 "Content-Type: text/plain; charset=utf-8\r\n" 43 f"Content-Length: {len(body)}\r\n" 44 "Connection: close\r\n" 45 "\r\n" 46 ).encode("ascii") 47 conn.sendall(headers + body) 48 except (ConnectionError, ValueError) as error: 49 print(f"Request failed: {error}") 50 51 52 if __name__ == "__main__": 53 main()
+```
+
+Listing 10: A small HTTP server built directly on a TCP socket
+
+Run it and open the URL in a browser. Then look at what you just wrote, because every idea in this handout is visible in it:
+
+- Delimiter framing. The header block ends at \r\n\r\n. The function loops until it sees that
+
+delimiter, because one recv() may not contain it.
+
+- Length-prefix framing. Content-Length is exactly that, for the body. HTTP uses both strategies, one for each part of the message.
+- Length in bytes, not characters. len(body) is computed on the encoded bytes. Compute it on a Unicode string containing any non-ASCII character and you will send a wrong Content-Length, which produces a truncated or hung response.
+- A size limit on anything a peer controls.
+- Connection: close tells the client not to expect the connection to be reused, which is what lets this example get away with being so simple.
+
+For anything real, use a maintained server or framework. Full HTTP is large, and the parts this example omits are mostly the security-relevant parts.
+
+## 11.2 TLS
+
+TCP gets your bytes there. It does not hide them, does not detect tampering, and does not tell you whether the machine that answered is the one you meant to reach. You confirmed the first of those yourself in Section 5, when you read your own message out of the capture in plaintext.
+
+Transport Layer Security wraps a TCP connection to add confidentiality, integrity, and authentication of the server through its certificate. HTTPS is exactly HTTP inside TLS. Python exposes it through the ssl module:
+
+```
+1 import socket 2 import ssl 3 4 hostname = "example.com" 5 context = ssl.create_default_context() # verification ON by default 6 7 with socket.create_connection((hostname, 443), timeout=5) as tcp_socket: 8 with context.wrap_socket(tcp_socket, server_hostname=hostname) as tls: 9 print("Negotiated:", tls.version()) 10 print("Peer certificate subject:", tls.getpeercert()["subject"])
+```
+
+Listing 11: The correct default pattern for a TLS client
+
+## The single most-copied insecure snippet in networking
+
+You will find this in tutorials, on Stack Overflow, and possibly in code you inherit:
+
+```
+context.check_hostname = False context.verify_mode = ssl.CERT_NONE # DO NOT DO THIS
+```
+
+It is usually added to make a self-signed test certificate connect. What it actually does is switch off the authentication half of TLS. You keep encryption and lose any assurance about whom you are encrypting to - which means an attacker in the middle can terminate your TLS, read everything, and open a second connection onward, and your program will report a successful secure connection.
+
+The correct fix for a self-signed test certificate is to trust that specific certificate: context.load\_verify\_locations("my\_test\_ca.pem"). It is one extra line and it keeps the property you wanted in the first place.
+
+A TLS server additionally needs a private key and a certificate chain, supplied by calling load\_cert\_chain() on its context. A throwaway self-signed pair for local testing is fine; managing real keys and certificates is an operational discipline we will not cover here.
+
+## 12 Errors, Timeouts, and Clean Shutdown
+
+Read ahead: useful the moment your programs get longer than one page.
+
+Networks fail in ordinary, expected ways. The server is not running. The peer went away midmessage. A firewall dropped the packet and nobody was informed. A response is taking longer than you are willing to wait. A well-written network program treats these as normal cases with defined handling, not as exceptions to be caught somewhere far away and logged.
+
+## 12.1 The exceptions worth knowing
+
+| ConnectionRefusedError   | Nothing is listening at that endpoint, or the connection was actively rejected. Usually: the server is not running, or you have the wrong port.                                 |
+|--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| TimeoutError             | An operation exceeded the timeout you set. socket.timeout is an alias for this from Python 3.10 onward; on 3.9 and earlier they are distinct and you must catch socket.timeout. |
+| ConnectionResetError     | The peer or an intermediary forcibly reset an established connection.                                                                                                           |
+| BrokenPipeError          | You wrote to a connection the peer has already closed.                                                                                                                          |
+| OSError                  | The parent of the above and the catch-all for socket errors. Read the errno.                                                                                                    |
+| UnicodeDecodeError       | The bytes you received are not valid in the encoding your protocol assumes - often the first symptom of a framing bug, because you have decoded from the wrong offset.          |
+
+Catch an exception only where you can add context, recover, or shut down cleanly. A bare except Exception: pass converts a diagnosable failure into a mysterious one.
+
+## 12.2 Ending a connection properly
+
+Closing a socket releases the local resources and signals end-of-stream to the peer, which is what makes the other side's recv() return b"".
+
+If you need to say "I am done sending, but keep talking to me, " sock.shutdown(socket.SHUT\_WR) sends the FIN without closing your receiving half. The peer sees end-of-stream on its reads and can still send you a final reply. This is the standard way to finish a request-then-read-everything exchange.
+
+The with blocks used throughout this handout close their sockets when the block ends, including when an exception unwinds through it. That is why they are there.
+
+## 13 Where This Goes Next
+
+You now have the shape of the thing. Everything after this is depth:
+
+- Below the socket. What TCP is actually doing to give you that reliable stream - sequence numbers, acknowledgements, retransmission timers, sliding windows, congestion control. How IP gets a packet across the world without any single device knowing the whole route.
+- Beside the socket. Name resolution, so you can write example.com instead of an address. IPv6, and why getaddrinfo() is the right way to write address-family-agnostic code.
+- Above the socket. Designing a protocol worth implementing: versioning, extensibility, error signalling, and what happens when the two endpoints are running different versions of your software.
+- Against the socket. What an attacker does to a service that trusts its input. You have already seen one such vector - the unvalidated length field - and it will not be the last.
+
+## 13.1 Quick reference
+
+| Call                                                                                                                                                                                                                     | What it does                                                                                                                                                                                                                                                                                                                                                                                                                     |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| socket(AF_INET, SOCK_STREAM) socket(AF_INET, SOCK_DGRAM) bind((host, port)) listen() accept() connect((host, port)) send(b) sendall(b) recv(n) sendto(b, addr) recvfrom(n) settimeout(seconds) shutdown(SHUT_WR) close() | Create a TCP socket (IPv4) Create a UDP socket (IPv4) Claim a local endpoint Accept incoming connections (TCP) Wait for a client; return a new socket Initiate a connection (TCP) Send some bytes; returns how many Send all the bytes, or raise Receive up to n bytes Send one datagram (UDP) Receive one datagram and its sender (UDP) Bound how long a call may block Signal end-of-stream, keep receiving Release the socket |
+
+## The nine sentences worth remembering
+
+1. A socket is your program's endpoint; the IP address picks the host and the port picks the program.
+2. A TCP server goes socket, bind, listen, accept; accept hands you a new socket per client.
+3. TCP delivers an ordered, reliable byte stream and does not preserve your message boundaries.
+4. So the application defines framing, and length-prefixing is the default answer.
+5. recv(n) returns up to n bytes; loop until you have what you need.
+6. UDP preserves datagram boundaries and guarantees nothing else; if you want reliability you write it.
+7. Blocking is simple until there are two clients; threads and event loops are the two standard
+
+answers, with different failure modes.
+
+8. Validate every length and every size that a peer controls.
+9. Timeouts, size limits, explicit error handling, and clean shutdown are parts of the protocol, not decorations on top of it.
+
+## Part III
+
+## Appendices
+
+## A The Same Operations in C
+
+Python's socket module is a thin wrapper over the POSIX socket API. If you write C in this course, the concepts transfer exactly and the calls have almost the same names - what changes is that C makes you handle the details Python was handling quietly.
+
+| Python                                                                                                                                                           | C (POSIX)                                                                                                                   | Note                                                                                                                                                                                                                      |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| socket.socket(...) s.bind(addr) s.listen() s.accept() s.connect(addr) s.recv(n) s.sendall(b) s.close() struct.pack("!H", x) struct.unpack("!H",) s.settimeout(t) | socket() bind() listen() accept() connect() recv() / read() no equivalent close() htons(x) ntohs(x) setsockopt(SO_RCVTIMEO) | Returns an int file descriptor Takes a struct sockaddr_in Backlog is an explicit argument Returns a new descriptor Returns a count; 0 means EOF You must write the loop htonl for 32-bit ntohl for 32-bit Or use select() |
+
+Three differences will cost you time if you are not expecting them.
+
+There is no sendall(). send() returns the number of bytes it accepted, which may be fewer than you gave it. Ignoring that return value is the classic C networking bug, and it is silent:
+
+```
+1 ssize_t send_all(int fd, const void *buf, size_t len) { 2 const char *p = buf; 3 size_t sent = 0; 4 while (sent < len) { 5 ssize_t n = send(fd, p + sent, len - sent, 0); 6 if (n < 0) { 7 if (errno == EINTR) continue; /* interrupted: retry */ 8 return -1; 9 } 10 sent += (size_t)n; 11 } 12 return (ssize_t)sent; 13 }
+```
+
+Listing 12: The loop Python was writing for you
+
+Do not send a struct by pointing at it. It is tempting to define a header as a struct and send(fd, &amp;hdr, sizeof hdr, 0). That transmits the compiler's memory layout: padding bytes inserted for alignment, fields in host byte order, and sizes that differ between platforms. It is the C form of the struct alignment trap from Section 8, and it produces a protocol that works only between two identically compiled programs.
+
+Serialise field by field into a byte buffer instead, converting byte order as you go:
+
+```
+1 uint8_t buf[13]; 2 size_t off = 0; 3 uint16_t v16; uint32_t v32; 4 5 v16 = htons(src_port); memcpy(buf + off, &v16, 2); off += 2; 6 v16 = htons(dst_port); memcpy(buf + off, &v16, 2); off += 2; 7 v32 = htonl(seq_num); memcpy(buf + off, &v32, 4); off += 4; 8 buf[off++] = ack_flag; 9 buf[off++] = syn_flag; 10 buf[off++] = fin_flag; 11 v16 = htons(payload_len); memcpy(buf + off, &v16, 2); off += 2; 12 /* off == 13, guaranteed, on every platform */
+```
+
+Listing 13: Explicit serialisation of the 13-byte example header
+
+Everything is your responsibility. No garbage collection, so every socket needs its matching close(). No exceptions, so every call needs its return value checked. No bounds checking, so every buffer needs its length tracked. Compile with -Wall -Wextra and believe the warnings.
+
+A minimal Makefile for a client and server pair:
+
+```
+CC = gcc CFLAGS = -Wall -Wextra -std=c11 -pthread all: server client server: server.c $(CC) $(CFLAGS) -o server server.c client: client.c $(CC) $(CFLAGS) -o client client.c clean: rm -f server client .PHONY: all clean
+```
+
+The indented lines in a Makefile must begin with a literal tab character, not spaces. This is the single most common reason a Makefile refuses to run, and the error message does not say so.
+
+## B Files Produced by This Document
+
+Working through Part I produces the first three files. The rest come from Part II.
+
+| File                                                                                     | Purpose                              | Part   |
+|------------------------------------------------------------------------------------------|--------------------------------------|--------|
+| echo_server.py echo_client.py measure_rtt.py async_server.py udp_server.py udp_client.py | Single-client TCP server             | I      |
+|                                                                                          | TCP client with a complete read loop | I      |
+|                                                                                          | Round-trip time measurement          | I      |
+| framed_socket.py                                                                         | Length-prefixed framing helpers      | II     |
+| threaded_server.py                                                                       | One thread per connection            | II     |
+|                                                                                          | Event-loop server                    | II     |
+|                                                                                          | UDP request-response server          | II     |
+|                                                                                          | UDP client with a timeout            | II     |
+| http_server.py                                                                           | Minimal HTTP/1.1 responder           | II     |
+
+Keep them. Put them in a repository with meaningful commits as you go. Several of these programs are recognisable ancestors of things you will build later, and the habit of committing incrementally is worth building before anything depends on it.

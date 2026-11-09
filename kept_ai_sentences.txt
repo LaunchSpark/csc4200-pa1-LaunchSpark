@@ -1,0 +1,12 @@
+# Sentence 1 [Source: /Users/lucasstarkey/Documents/GitHub/networkingP1/parsed_output/PA1_Brief.md]
+AI use and authorship
+
+# Sentence 2 [Source: /Users/lucasstarkey/Documents/GitHub/networkingP1/parsed_output/PA1_Brief.md]
+AI use and authorship (5 points)
+
+# Sentence 3 [Source: /Users/lucasstarkey/Documents/GitHub/networkingP1/parsed_output/PA1_Brief.md]
+For PA1, this section replaces the syllabus's "tool syntax only" rule for packet analysis: you may use AI to understand what you see in your capture, but the reading and the reasoning must be yours.
+
+# Sentence 4 [Source: /Users/lucasstarkey/Documents/GitHub/networkingP1/parsed_output/PA1_Brief.md, /Users/lucasstarkey/Documents/GitHub/networkingP1/parsed_output/Project_Handbook.md]
+You may use generative AI tools in this project.
+
