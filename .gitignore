@@ -26,3 +26,6 @@ downloads/
 *.key
 *.pem
 .env
+
+# Reference documentation
+parsed_output/
