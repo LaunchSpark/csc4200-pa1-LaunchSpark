@@ -1,10 +1,5 @@
 # AI Use Disclosure — PA1
 
-_Generative AI is allowed on PA1 as a tutor, reviewer, debugging partner and
-helper with tooling. It is not allowed to be the author of your work. See the PA1
-brief, "AI, Authorship and You". Fill in every section. "None" is an acceptable
-answer only if it is true._
-
 ## 1. Did you use generative AI on this assignment?
 
 - [ ] No. I did not use any generative AI tool for any part of PA1.
