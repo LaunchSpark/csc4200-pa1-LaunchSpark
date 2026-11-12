@@ -7,7 +7,7 @@
 
 ## 2. Statement (the syllabus form)
 
-> The author acknowledges the utilization of Claude (Opus 5.5 and 3.5 Sonnet) and Antigravity (Gemini), language models developed by Anthropic and Google DeepMind, in the preparation of this assignment. I employed these tools as technical assistants for reviewing socket error handling idioms, exploring bytearray stream accumulator patterns, drafting the initial Makefile, structuring unit test mocks, and verifying packet analysis interpretations against RFC 793. I maintained complete oversight of all protocol invariants, state machines, and evidence gathering.
+> The authors acknowledge the utilization of Claude (Opus 5.5 and 3.5 Sonnet) and Antigravity (Gemini), language models developed by Anthropic and Google DeepMind, in the preparation of this assignment. We employed these tools as technical assistants for reviewing socket error handling idioms, exploring bytearray stream accumulator patterns, drafting the initial Makefile, structuring unit test mocks, and verifying packet analysis interpretations against RFC 793. We maintained complete oversight of all protocol invariants, state machines, and evidence gathering.
 
 ## 3. Log
 

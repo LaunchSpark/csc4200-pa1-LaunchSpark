@@ -1,6 +1,6 @@
 # PA1 — ETP/1 Client and Server
 
-**Student:** Lucas Starkey (`LaunchSpark`)
+**Students:** Lucas Starkey (`LaunchSpark`) and Trey Gannod (`tgannod42`)
 **Course:** CSC 4200 — Fall 2026
 **Language:** Python
 **Submission commit:** After the final edits are committed and pushed, run `git rev-parse HEAD` and paste that full SHA into Canvas.
@@ -97,12 +97,12 @@ Known limitations: None within the protocol specification.
 
 ## Authorship statement
 
-I am the author of this submission. Except where this README or `AI_USE.md`
-says otherwise, I wrote, or rewrote and understand, every part of it — code,
-documents and evidence — and I can explain any line of it to the instructor or
-GTA. I am responsible for its correctness, including any part a
-generative AI tool helped me produce. My use of AI tools is disclosed in full in
+We are the authors of this submission. Except where this README or `AI_USE.md`
+says otherwise, we wrote, or rewrote and understand, every part of it — code,
+documents and evidence — and we can explain any line of it to the instructor or
+GTA. We are responsible for its correctness, including any part a
+generative AI tool helped me produce. Our use of AI tools is disclosed in full in
 `AI_USE.md`. The capture and measurements in `evidence/` come from this repository's
 programs, run through the containerized collection workflow disclosed there.
 
-**Signed:** Lucas Starkey  **Date:** November 12, 2026
+**Signed:** Lucas Starkey, Trey Gannod  **Date:** November 12, 2026
