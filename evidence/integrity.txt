@@ -1,0 +1,9 @@
+cmp source/download: PASS
+cmp source/server: PASS
+262144 scratch/photo.bin
+262144 server-files/photo.bin
+262144 scratch/copy.bin
+786432 total
+8e345f92d5faa9ebf77888860a10d6d3e8ee378ee93990cac1a795039bcc4973  scratch/photo.bin
+8e345f92d5faa9ebf77888860a10d6d3e8ee378ee93990cac1a795039bcc4973  server-files/photo.bin
+8e345f92d5faa9ebf77888860a10d6d3e8ee378ee93990cac1a795039bcc4973  scratch/copy.bin

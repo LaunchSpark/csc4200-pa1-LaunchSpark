@@ -5,7 +5,7 @@ the **Project Handbook**, the **ETP/1 Specification**, and the **PA1 brief**.
 
 | Path | What it is |
 |---|---|
-| `etp_selfcheck.py` | Runs the same execution tests the grader runs. Use it often. |
+| `../tests/course/etp_selfcheck.py` | Unmodified course checker, placed with test tooling so its scripted socket peers are excluded from the application transport-seam scan. |
 | `starter/python/` | Python starter: launchers, Makefile, skeleton, templates |
 | `starter/c/` | C starter: headers, Makefile, skeleton, templates |
 

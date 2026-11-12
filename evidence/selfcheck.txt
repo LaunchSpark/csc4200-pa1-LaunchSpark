@@ -1,0 +1,49 @@
+ETP/1 self-check 1.0 (2026-10-20)  --  /Users/lucasstarkey/Documents/GitHub/networkingP1
+
+Building (make build) ...
+
+Server tests
+  S01  PASS   2 pt  HELLO handshake and HELLO_OK format
+              server identifies as 'ETP reference server 1.0'
+  S02  PASS   2 pt  LIST format, sorting and filtering
+  S03  PASS   1 pt  GET a small file
+  S04  PASS   1 pt  GET a 2 MiB file
+  S05  PASS   2 pt  PUT 300 KB, digest, then GET it back
+  S06  PASS   1 pt  PUT and GET empty files
+  S07  PASS   1 pt  NOT_FOUND is non-fatal
+  S08  PASS   1 pt  BAD_NAME blocks traversal; non-fatal
+  S09  PASS   2 pt  requests arriving in fragments
+              header reassembly works (recv_exact)
+  S10  PASS   2 pt  several requests in one write
+  S11  PASS   1 pt  unknown TYPE: BAD_TYPE, payload skipped
+  S12  PASS   1 pt  bad VERSION is fatal
+  S13  PASS   1 pt  oversized LEN is fatal, nothing allocated
+  S14  PASS   1 pt  request before HELLO is fatal
+  S15  PASS   1 pt  BYE: BYE_OK, then the server closes
+  S16  PASS   2 pt  8 clients served while 2 others stall
+              8 clients served in 0.005 s while 2 others stalled
+  S17  PASS   1 pt  survives clients that vanish mid-transfer
+  S18  PASS   1 pt  restart on the same port (SO_REUSEADDR)
+
+Client tests (a scripted peer plays the server)
+  C01  PASS   1 pt  list: fragmented response printed exactly; sends BYE
+  C02  PASS   2 pt  get: 200 KB in fragments written to disk
+  C03  PASS   1 pt  put: payload layout and digest printed
+  C04  PASS   1 pt  server ERROR: exit 1 and a stderr message
+  C05  PASS   1 pt  digest mismatch: exit 3
+  C06  PASS   0 pt  no server: exit 2 (not scored)
+
+Evidence and documents
+  - capture: 2 TCP connection(s); the GET session looks complete
+  - ANALYSIS.md: every etp-facts field is filled in (values are checked at grading)
+
+Repository (scored by the same rules at grading)
+  build 3/3
+  required files 2/2
+  commit history 3/3  (29 commits on 3 day(s); full marks: 5 or more after the starter commit, on 3 or more days)
+  transport seam 2/2
+  Build and repository: 10 / 10
+
+Execution: 30 / 30 points
+This is the Execution part of the rubric only. Evidence, design and documentation
+are scored by people, using the bands in the PA1 brief.

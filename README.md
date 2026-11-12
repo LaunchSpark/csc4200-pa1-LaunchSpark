@@ -3,7 +3,7 @@
 **Student:** Trey Gannod (`LaunchSpark` / `tgannod42`)
 **Course:** CSC 4200 — Fall 2026
 **Language:** Python
-**Submitted commit:** _the SHA you paste into Canvas_
+**Submission commit:** After the final edits are committed and pushed, run `git rev-parse HEAD` and paste that full SHA into Canvas.
 
 ## Build and run
 
@@ -23,6 +23,25 @@ make run-server PORT=5000 ROOT=server-files      # in one terminal
   ```bash
   make check
   ```
+  The bundled, unmodified checker is at `tests/course/etp_selfcheck.py`.
+
+### Evidence verification
+
+The evidence was recollected on November 10, 2026 in a local Docker Linux
+container, using the automation disclosed in `AI_USE.md`. The full command
+trace, environment, packet capture, file sizes/hashes, and TIME-WAIT output
+are retained in `evidence/`. See `evidence/ANALYSIS.md` for measured results.
+
+To verify the capture against the retained source, server copy, and download:
+
+```bash
+python3 tests/evidence/verify.py --evidence evidence --analysis evidence/ANALYSIS.md
+```
+
+The random files remain in ignored `scratch/` and `server-files/` directories;
+this command requires those local fixtures. A fresh clone can inspect the
+recorded hashes and logs, or recollect a new run using
+`tests/evidence/README.md`. Each new capture requires updated analysis facts.
 
 ## What works and what does not
 
@@ -68,7 +87,11 @@ Known limitations: None within the protocol specification.
 | `AI_USE.md` | AI-use disclosure and interaction log |
 | `evidence/pa1-capture.pcap` | Loopback packet capture of PUT and GET sessions |
 | `evidence/time-wait.txt` | `ss` command output verifying server-side TIME-WAIT state |
-| `evidence/ANALYSIS.md` | Wireshark/tshark packet capture analysis and Q1–Q5 answers |
+| `evidence/ANALYSIS.md` | Packet capture measurements and corrected Q1–Q5 answers |
+| `evidence/integrity.txt` | Successful byte comparisons, exact sizes, and matching SHA-256 hashes |
+| `evidence/verification.json` | Strict verification of both sessions, captured file bytes, and analysis facts |
+| `tests/evidence/` | Reproducible Linux capture workflow and evidence verifier |
+| `tests/course/etp_selfcheck.py` | Unmodified course checker, kept with test tooling |
 
 ---
 
@@ -79,7 +102,7 @@ says otherwise, I wrote, or rewrote and understand, every part of it — code,
 documents and evidence — and I can explain any line of it to the instructor or
 GTA. I am responsible for its correctness, including any part a
 generative AI tool helped me produce. My use of AI tools is disclosed in full in
-`AI_USE.md`. The capture and measurements in `evidence/` come from my own programs,
-run by me.
+`AI_USE.md`. The capture and measurements in `evidence/` come from this repository's
+programs, run through the Codex-assisted collection workflow disclosed there.
 
 **Signed:** Trey Gannod  **Date:** November 12, 2026

@@ -1,0 +1,236 @@
+{
+ "tool": "1.0 (2026-10-20)",
+ "repo": "/Users/lucasstarkey/Documents/GitHub/networkingP1",
+ "build_ok": true,
+ "tests": [
+  {
+   "id": "S01",
+   "points": 2,
+   "earned": 2,
+   "desc": "HELLO handshake and HELLO_OK format",
+   "ok": true,
+   "detail": "server identifies as 'ETP reference server 1.0'",
+   "seconds": 0.0
+  },
+  {
+   "id": "S02",
+   "points": 2,
+   "earned": 2,
+   "desc": "LIST format, sorting and filtering",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S03",
+   "points": 1,
+   "earned": 1,
+   "desc": "GET a small file",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S04",
+   "points": 1,
+   "earned": 1,
+   "desc": "GET a 2 MiB file",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.01
+  },
+  {
+   "id": "S05",
+   "points": 2,
+   "earned": 2,
+   "desc": "PUT 300 KB, digest, then GET it back",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.01
+  },
+  {
+   "id": "S06",
+   "points": 1,
+   "earned": 1,
+   "desc": "PUT and GET empty files",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S07",
+   "points": 1,
+   "earned": 1,
+   "desc": "NOT_FOUND is non-fatal",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S08",
+   "points": 1,
+   "earned": 1,
+   "desc": "BAD_NAME blocks traversal; non-fatal",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S09",
+   "points": 2,
+   "earned": 2,
+   "desc": "requests arriving in fragments",
+   "ok": true,
+   "detail": "header reassembly works (recv_exact)",
+   "seconds": 0.8
+  },
+  {
+   "id": "S10",
+   "points": 2,
+   "earned": 2,
+   "desc": "several requests in one write",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S11",
+   "points": 1,
+   "earned": 1,
+   "desc": "unknown TYPE: BAD_TYPE, payload skipped",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S12",
+   "points": 1,
+   "earned": 1,
+   "desc": "bad VERSION is fatal",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S13",
+   "points": 1,
+   "earned": 1,
+   "desc": "oversized LEN is fatal, nothing allocated",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S14",
+   "points": 1,
+   "earned": 1,
+   "desc": "request before HELLO is fatal",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S15",
+   "points": 1,
+   "earned": 1,
+   "desc": "BYE: BYE_OK, then the server closes",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.0
+  },
+  {
+   "id": "S16",
+   "points": 2,
+   "earned": 2,
+   "desc": "8 clients served while 2 others stall",
+   "ok": true,
+   "detail": "8 clients served in 0.005 s while 2 others stalled",
+   "seconds": 0.01
+  },
+  {
+   "id": "S17",
+   "points": 1,
+   "earned": 1,
+   "desc": "survives clients that vanish mid-transfer",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.5
+  },
+  {
+   "id": "S18",
+   "points": 1,
+   "earned": 1,
+   "desc": "restart on the same port (SO_REUSEADDR)",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.11
+  },
+  {
+   "id": "C01",
+   "points": 1,
+   "earned": 1,
+   "desc": "list: fragmented response printed exactly; sends BYE",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.44
+  },
+  {
+   "id": "C02",
+   "points": 2,
+   "earned": 2,
+   "desc": "get: 200 KB in fragments written to disk",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.62
+  },
+  {
+   "id": "C03",
+   "points": 1,
+   "earned": 1,
+   "desc": "put: payload layout and digest printed",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.19
+  },
+  {
+   "id": "C04",
+   "points": 1,
+   "earned": 1,
+   "desc": "server ERROR: exit 1 and a stderr message",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.21
+  },
+  {
+   "id": "C05",
+   "points": 1,
+   "earned": 1,
+   "desc": "digest mismatch: exit 3",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.2
+  },
+  {
+   "id": "C06",
+   "points": 0,
+   "earned": 0,
+   "desc": "no server: exit 2 (not scored)",
+   "ok": true,
+   "detail": "",
+   "seconds": 0.1
+  }
+ ],
+ "evidence_ok": true,
+ "evidence": [
+  "capture: 2 TCP connection(s); the GET session looks complete",
+  "ANALYSIS.md: every etp-facts field is filled in (values are checked at grading)"
+ ],
+ "repo_parts": {
+  "build": 3,
+  "files": 2,
+  "commits": 3,
+  "seam": 2
+ },
+ "earned": 30,
+ "possible": 30
+}

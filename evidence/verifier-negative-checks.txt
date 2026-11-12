@@ -1,0 +1,4 @@
+PASS: missing_final_ack rejected (missing final FIN acknowledgment); stale report removed
+PASS: changed_file_bytes rejected (captured bytes differ); stale report removed
+PASS: wrong_analysis_fact rejected (analysis facts differ); stale report removed
+PASS: missing_time_wait rejected (missing server TIME-WAIT); stale report removed

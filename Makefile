@@ -10,7 +10,7 @@ ROOT     ?= server-files
 ifneq ($(wildcard $(HOME)/csc4200-course/project/etp_selfcheck.py),)
 SELFCHECK ?= $(HOME)/csc4200-course/project/etp_selfcheck.py
 else
-SELFCHECK ?= project/etp_selfcheck.py
+SELFCHECK ?= tests/course/etp_selfcheck.py
 endif
 
 .PHONY: build run-server check clean
@@ -24,7 +24,7 @@ run-server: build
 	./etp-server --port $(PORT) --root $(ROOT)
 
 check: build
-	$(PY) $(SELFCHECK) --no-build || true
+	$(PY) $(SELFCHECK) --no-build
 
 clean:
 	rm -rf src/__pycache__
