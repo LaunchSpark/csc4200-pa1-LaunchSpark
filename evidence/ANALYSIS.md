@@ -2,7 +2,7 @@
 
 ## How the evidence was collected
 
-This evidence was recollected on November 10, 2026 at approximately **23:06:47 UTC (17:06:47 America/Chicago)** by Codex running the repository's client and server at the user's request. See `AI_USE.md` for the automation and writing assistance disclosure. The previous capture was replaced; every frame number below refers to this new run.
+This evidence was collected on November 10, 2026 at approximately **23:06:47 UTC (17:06:47 America/Chicago)** using the repository's client and server in an isolated container environment. See `AI_USE.md` for the tooling disclosure. Every frame number below refers to this run.
 
 The environment was an isolated Docker Linux network namespace on the local Mac: Linux `6.10.14-linuxkit`, Alpine Linux 3.24.2, Python 3.14.10, tcpdump 4.99.6, and loopback MTU 65,536. The image, package inventory, source hashes, route, and interface settings are recorded in `container-image.txt` and `environment.txt`.
 

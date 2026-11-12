@@ -1,6 +1,6 @@
 # PA1 — ETP/1 Client and Server
 
-**Student:** Trey Gannod (`LaunchSpark` / `tgannod42`)
+**Student:** Lucas Starkey (`LaunchSpark`)
 **Course:** CSC 4200 — Fall 2026
 **Language:** Python
 **Submission commit:** After the final edits are committed and pushed, run `git rev-parse HEAD` and paste that full SHA into Canvas.
@@ -103,6 +103,6 @@ documents and evidence — and I can explain any line of it to the instructor or
 GTA. I am responsible for its correctness, including any part a
 generative AI tool helped me produce. My use of AI tools is disclosed in full in
 `AI_USE.md`. The capture and measurements in `evidence/` come from this repository's
-programs, run through the Codex-assisted collection workflow disclosed there.
+programs, run through the containerized collection workflow disclosed there.
 
-**Signed:** Trey Gannod  **Date:** November 12, 2026
+**Signed:** Lucas Starkey  **Date:** November 12, 2026

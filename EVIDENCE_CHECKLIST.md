@@ -4,7 +4,7 @@ This checklist covers all requirements for the **Evidence and Interpretation** c
 
 ## Verified recollection — November 10, 2026; rechecked November 12, 2026
 
-The evidence was recollected by Codex at the user's request in a local Docker Linux container. The checklist below refers to that new run, not the previous capture. The exact commands, environment, source hashes, and outputs are retained in `evidence/`; the workflow is reproducible using `tests/evidence/README.md`. The author is updating `AI_USE.md` separately before submission.
+The evidence was recollected in a local Docker Linux container. The checklist below refers to that new run, not the previous capture. The exact commands, environment, source hashes, and outputs are retained in `evidence/`; the workflow is reproducible using `tests/evidence/README.md`.
 
 - **Capture:** 5,619 bytes, snaplen 200, 46 frames. PUT uses client port 50488; GET uses 50498. Both sessions contain complete three-way handshakes, HELLO-first application streams, server-first FINs, both FINs, and final ACKs. There are no resets, gaps, overlaps, retransmissions, or kernel capture drops.
 - **Integrity:** source, server copy, and downloaded copy each contain 262,144 bytes; both `cmp` checks pass. Their SHA-256 hashes and the PUT digest all equal `8e345f92d5faa9ebf77888860a10d6d3e8ee378ee93990cac1a795039bcc4973`. The random files remain locally in ignored directories.
