@@ -82,4 +82,4 @@ generative AI tool helped me produce. My use of AI tools is disclosed in full in
 `AI_USE.md`. The capture and measurements in `evidence/` come from my own programs,
 run by me.
 
-**Signed:** Trey Gannod  **Date:** November 10, 2026
+**Signed:** Trey Gannod  **Date:** November 12, 2026
